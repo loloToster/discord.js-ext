@@ -1,13 +1,14 @@
 import { Client, ClientEvents, ClientOptions, Message } from "discord.js";
+import { Context } from "./Context";
 
 type PrefixFunc = (bot: Bot, msg: Message) => string | Promise<string>
 type Prefix = string[] | PrefixFunc
 
-export interface BotOptions {
+export interface BotOptions extends ClientOptions {
     prefix: string | Prefix
 }
 
-type CommandFunc = (msg: Message, args: string[], bot: Bot) => any
+type CommandFunc = (ctx: Context, args: string[]) => any
 
 export interface Command {
     name: string,
@@ -31,13 +32,13 @@ export class Bot extends Client {
     prefix: Prefix
     private _commands: Required<Command>[]
 
-    constructor(botOptions: BotOptions, clientOptions: ClientOptions) {
-        super(clientOptions)
+    constructor(options: BotOptions) {
+        super(options)
 
-        if (typeof botOptions.prefix === "string")
-            this.prefix = [botOptions.prefix]
+        if (typeof options.prefix === "string")
+            this.prefix = [options.prefix]
         else
-            this.prefix = botOptions.prefix
+            this.prefix = options.prefix
 
         this._commands = []
 
@@ -82,7 +83,15 @@ export class Bot extends Client {
         if (!cmd) return false
 
         try {
-            await cmd.execute(msg, args, this)
+            await cmd.execute(
+                new Context({
+                    args,
+                    bot: this,
+                    command: cmd,
+                    message: msg,
+                    invokedWith: cmdName
+                }), args
+            )
         } catch (err) {
             this.emit("commandError", cmd, err)
         }
