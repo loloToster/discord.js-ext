@@ -1,4 +1,4 @@
-import { Client, ClientOptions, Message } from "discord.js";
+import { Client, ClientEvents, ClientOptions, Message } from "discord.js";
 
 type PrefixFunc = (bot: Bot, msg: Message) => string | Promise<string>
 type Prefix = string[] | PrefixFunc
@@ -11,13 +11,25 @@ type CommandFunc = (msg: Message, args: string[], bot: Bot) => any
 
 export interface Command {
     name: string,
+    aliases?: string[],
+    description?: string,
     execute: CommandFunc
+}
+
+export interface BotEvents extends ClientEvents {
+    commandError: [cmd: Command, err: unknown],
+    commandNotFound: [msg: Message, cmdName: string, args: string[]]
+}
+
+export interface Bot {
+    on<K extends keyof BotEvents>(event: K, listener: (...args: BotEvents[K]) => any): this,
+    emit<K extends keyof BotEvents>(event: K, ...args: BotEvents[K]): boolean
 }
 
 export class Bot extends Client {
 
     prefix: Prefix
-    commands: Command[]
+    private _commands: Required<Command>[]
 
     constructor(botOptions: BotOptions, clientOptions: ClientOptions) {
         super(clientOptions)
@@ -27,7 +39,7 @@ export class Bot extends Client {
         else
             this.prefix = botOptions.prefix
 
-        this.commands = []
+        this._commands = []
 
         this.on("messageCreate", this._commandHandler)
     }
@@ -42,28 +54,43 @@ export class Bot extends Client {
             if (!content.startsWith(prefix)) continue
             content = content.substring(prefix.length)
             let args = content.split(/ +/g)
-            let command = args.shift()
+            let command = args.shift() ?? ""
 
-            await this.executeCommand(msg, command ?? "", args)
+            let found = await this.executeCommand(msg, command, args)
+            if (!found) this.emit("commandNotFound", msg, command, args)
         }
     }
 
-    addCommand(name: string, func: CommandFunc) {
-        this.commands.push({
+    addCommand(name: string, func: CommandFunc, commandData: Omit<Command, "name" | "execute"> = {}) {
+        this._commands.push({
             name,
+            aliases: commandData.aliases ?? [],
+            description: commandData.description ?? "",
             execute: func
         })
     }
 
     getCommand(name: string) {
-        return this.commands.find(cmd => cmd.name === name)
+        return this._commands.find(
+            cmd => cmd.name === name || cmd.aliases.some(a => a === name)
+        )
     }
 
     async executeCommand(msg: Message, cmdName: string, args: string[]) {
-        if (!cmdName) return
+        if (!cmdName) return false
         const cmd = this.getCommand(cmdName)
-        if (!cmd) return
+        if (!cmd) return false
 
-        await cmd.execute(msg, args, this)
+        try {
+            await cmd.execute(msg, args, this)
+        } catch (err) {
+            this.emit("commandError", cmd, err)
+        }
+
+        return true
+    }
+
+    get commands() {
+        return this._commands
     }
 }
