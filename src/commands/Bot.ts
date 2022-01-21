@@ -8,17 +8,34 @@ export interface BotOptions extends ClientOptions {
     prefix: string | Prefix
 }
 
+type CheckFunc = (ctx: Context, args: string[]) => Promise<boolean> | boolean
+
+export interface CheckData {
+    description?: string,
+    global?: boolean,
+}
+
+export interface Check extends CheckData {
+    name: string,
+    check: CheckFunc
+}
+
 type CommandFunc = (ctx: Context, args: string[]) => any
 
-export interface Command {
-    name: string,
+export interface CommandData {
     aliases?: string[],
     description?: string,
+    check?: string[],
+}
+
+export interface Command extends CommandData {
+    name: string,
     execute: CommandFunc
 }
 
 export interface BotEvents extends ClientEvents {
-    commandError: [cmd: Command, err: unknown],
+    checkError: [ctx: Context, err: unknown],
+    commandError: [ctx: Context, err: unknown],
     commandNotFound: [msg: Message, cmdName: string, args: string[]]
 }
 
@@ -31,16 +48,19 @@ export class Bot extends Client {
 
     prefix: Prefix
     private _commands: Required<Command>[]
+    private _checks: Required<Check>[]
+    private _globalChecks: Required<Check>[]
 
     constructor(options: BotOptions) {
         super(options)
 
-        if (typeof options.prefix === "string")
-            this.prefix = [options.prefix]
-        else
+        this.prefix = typeof options.prefix === "string" ?
+            this.prefix = [options.prefix] :
             this.prefix = options.prefix
 
         this._commands = []
+        this._checks = []
+        this._globalChecks = []
 
         this.on("messageCreate", this._commandHandler)
     }
@@ -53,6 +73,7 @@ export class Bot extends Client {
 
         for (const prefix of prefixes) {
             if (!content.startsWith(prefix)) continue
+
             content = content.substring(prefix.length)
             let args = content.split(/ +/g)
             let command = args.shift() ?? ""
@@ -62,11 +83,40 @@ export class Bot extends Client {
         }
     }
 
-    addCommand(name: string, func: CommandFunc, commandData: Omit<Command, "name" | "execute"> = {}) {
+    private async _check(ctx: Context, args: string[]) {
+
+        const toCheck = this._globalChecks.concat(
+            this._checks.filter(c => ctx.command.check.includes(c.name))
+        )
+
+        for (const c of toCheck) {
+            let success = await c.check(ctx, args)
+            if (!success) return { success: false, checkName: c.name }
+        }
+
+        return { success: true, checkName: "" }
+    }
+
+    addCheck(name: string, func: CheckFunc, checkData: CheckData = {}) {
+        let c = {
+            name,
+            description: checkData.description ?? "",
+            global: checkData.global ?? false,
+            check: func
+        }
+
+        if (c.global)
+            this._globalChecks.push(c)
+        else
+            this._checks.push(c)
+    }
+
+    addCommand(name: string, func: CommandFunc, commandData: CommandData = {}) {
         this._commands.push({
             name,
             aliases: commandData.aliases ?? [],
             description: commandData.description ?? "",
+            check: commandData.check ?? [],
             execute: func
         })
     }
@@ -82,21 +132,34 @@ export class Bot extends Client {
         const cmd = this.getCommand(cmdName)
         if (!cmd) return false
 
+        const ctx = new Context({
+            args,
+            bot: this,
+            command: cmd,
+            message: msg,
+            invokedWith: cmdName
+        })
+
         try {
-            await cmd.execute(
-                new Context({
-                    args,
-                    bot: this,
-                    command: cmd,
-                    message: msg,
-                    invokedWith: cmdName
-                }), args
-            )
+            const { success, checkName } = await this._check(ctx, args)
+            if (!success)
+                throw new Error("Check failed: " + checkName)
         } catch (err) {
-            this.emit("commandError", cmd, err)
+            this.emit("checkError", ctx, err)
+            return true
+        }
+
+        try {
+            await cmd.execute(ctx, args)
+        } catch (err) {
+            this.emit("commandError", ctx, err)
         }
 
         return true
+    }
+
+    get checks() {
+        return this._checks.concat(this._globalChecks)
     }
 
     get commands() {
