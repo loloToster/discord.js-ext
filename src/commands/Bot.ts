@@ -16,8 +16,9 @@ export interface CheckData {
 }
 
 export interface Check extends CheckData {
-    name: string,
-    check: CheckFunc
+    name?: string,
+    check: CheckFunc,
+    cog: Cog | null
 }
 
 type CommandFunc = (ctx: Context, args: string[]) => any
@@ -29,8 +30,31 @@ export interface CommandData {
 }
 
 export interface Command extends CommandData {
+    name?: string,
+    command: CommandFunc,
+    cog: Cog | null
+}
+
+type initFunc = (bot: Bot) => any
+type RawCogElement = Command | Check | string | undefined | initFunc
+
+export interface RawCog {
+    init?: initFunc
     name: string,
-    execute: CommandFunc
+    description?: string,
+    [name: string]: RawCogElement
+}
+
+export interface Cog {
+    name: string,
+    description: string,
+    checks: Required<Check>[],
+    commands: Required<Command>[]
+}
+
+export interface Extension {
+    setup: (bot: Bot) => any,
+    teardown?: (bot: Bot) => any // TODO: add unload extension
 }
 
 export interface BotEvents extends ClientEvents {
@@ -50,6 +74,7 @@ export class Bot extends Client {
     private _commands: Required<Command>[]
     private _checks: Required<Check>[]
     private _globalChecks: Required<Check>[]
+    private _cogs: Required<Cog>[]
 
     constructor(options: BotOptions) {
         super(options)
@@ -61,6 +86,7 @@ export class Bot extends Client {
         this._commands = []
         this._checks = []
         this._globalChecks = []
+        this._cogs = []
 
         this.on("messageCreate", this._commandHandler)
     }
@@ -86,7 +112,10 @@ export class Bot extends Client {
     private async _check(ctx: Context, args: string[]) {
 
         const toCheck = this._globalChecks.concat(
-            this._checks.filter(c => ctx.command.check.includes(c.name))
+            this._checks.filter(c => ctx.command.check.includes(c.name)),
+            ctx.command.cog?.checks.filter(
+                c => c.global || ctx.command.check.includes(c.name)
+            ) ?? []
         )
 
         for (const c of toCheck) {
@@ -102,7 +131,8 @@ export class Bot extends Client {
             name,
             description: checkData.description ?? "",
             global: checkData.global ?? false,
-            check: func
+            check: func,
+            cog: null
         }
 
         if (c.global)
@@ -117,7 +147,8 @@ export class Bot extends Client {
             aliases: commandData.aliases ?? [],
             description: commandData.description ?? "",
             check: commandData.check ?? [],
-            execute: func
+            command: func,
+            cog: null
         })
     }
 
@@ -150,7 +181,7 @@ export class Bot extends Client {
         }
 
         try {
-            await cmd.execute(ctx, args)
+            await cmd.command(ctx, args)
         } catch (err) {
             this.emit("commandError", ctx, err)
         }
@@ -159,10 +190,79 @@ export class Bot extends Client {
     }
 
     get checks() {
-        return this._checks.concat(this._globalChecks)
+        let cogsChecks: Required<Check>[] = []
+        this._cogs.forEach(c => c.checks.forEach(chck => cogsChecks.push(chck)))
+        return this._checks.concat(this._globalChecks, cogsChecks)
     }
 
     get commands() {
         return this._commands
+    }
+
+    private _isCheck(obj: Command | Check): obj is Check {
+        return typeof obj.check === "function"
+    }
+
+    private _isCommand(obj: any): obj is Command {
+        return typeof obj.command === "function"
+    }
+
+    addCog(cog: RawCog) {
+
+        let newCog: Cog = {
+            name: cog.name,
+            description: cog.description ?? "",
+            checks: [],
+            commands: []
+        }
+
+        for (const key in cog) {
+            const element = cog[key]
+
+            if (typeof element === "string" ||
+                typeof element === "undefined" ||
+                typeof element === "function") continue
+
+
+            if (this._isCheck(element)) {
+                newCog.checks.push({
+                    name: element.name ?? key,
+                    description: element.description ?? "",
+                    global: element.global ?? false,
+                    check: element.check,
+                    cog: newCog
+                })
+            } else if (this._isCommand(element)) {
+                const cmd = {
+                    name: element.name ?? key,
+                    description: element.description ?? "",
+                    aliases: element.aliases ?? [],
+                    check: element.check ?? [],
+                    command: element.command,
+                    cog: newCog
+                }
+
+                this._commands.push(cmd)
+                newCog.commands.push(cmd)
+            }
+        }
+
+        this._cogs.push(newCog)
+
+        if (cog.init) cog.init(this)
+    }
+
+    private _isExt(obj: any): obj is Extension {
+        return typeof obj.setup === "function" && // setup must be a function
+            (typeof obj.teardown === "function" || // teardown must be either function
+                typeof obj.teardown === "undefined") // or undefined
+    }
+
+    loadExtension(path: string) {
+        let ext = require(path)
+
+        if (!this._isExt(ext)) throw new Error("Invalid extension")
+
+        ext.setup(this)
     }
 }
