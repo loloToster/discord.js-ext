@@ -1,5 +1,6 @@
 import { Client, ClientEvents, ClientOptions, Message } from "discord.js"
 
+import { Check, CheckFunc, CheckData } from "./Check"
 import { Cog, RawCog } from "./Cog"
 import { Command, CommandData, CommandFunc } from "./Command"
 import { Context } from "./Context"
@@ -8,19 +9,6 @@ export type Prefix = string[] | ((bot: Bot, msg: Message) => string | Promise<st
 
 export interface BotOptions extends ClientOptions {
     prefix: string | Prefix
-}
-
-export type CheckFunc = (ctx: Context, args: string[]) => Promise<boolean> | boolean
-
-export interface CheckData {
-    description?: string,
-    global?: boolean
-}
-
-export interface Check extends CheckData {
-    name?: string,
-    check: CheckFunc,
-    cog: Cog | null
 }
 
 export interface Extension {
@@ -43,8 +31,8 @@ export class Bot extends Client {
     prefix: Prefix
 
     private commands: Command[]
-    private checks: Required<Check>[]
-    private globalChecks: Required<Check>[]
+    private checks: Check[]
+    private globalChecks: Check[]
     private cogs: Cog[]
 
     constructor(options: BotOptions) {
@@ -89,7 +77,7 @@ export class Bot extends Client {
         )
 
         for (const c of toCheck) {
-            let success = await c.check(ctx, args)
+            let success = await c.callback(ctx, args)
             if (!success) return { success: false, checkName: c.name }
         }
 
@@ -97,18 +85,12 @@ export class Bot extends Client {
     }
 
     addCheck(name: string, func: CheckFunc, checkData: CheckData = {}) {
-        let c = {
-            name,
-            description: checkData.description ?? "",
-            global: checkData.global ?? false,
-            check: func,
-            cog: null
-        }
+        checkData.cog = undefined
 
-        if (c.global)
-            this.globalChecks.push(c)
-        else
-            this.checks.push(c)
+        const check = new Check(name, func, checkData)
+
+        if (check.global) this.globalChecks.push(check)
+        else this.checks.push(check)
     }
 
     addCommand(name: string, func: CommandFunc, commandData: CommandData = {}) {
@@ -154,7 +136,7 @@ export class Bot extends Client {
     }
 
     getChecks() {
-        let cogsChecks: Required<Check>[] = []
+        let cogsChecks: Check[] = []
         this.cogs.forEach(c => c.getChecks().forEach(chck => cogsChecks.push(chck)))
         return this.checks.concat(this.globalChecks, cogsChecks)
     }

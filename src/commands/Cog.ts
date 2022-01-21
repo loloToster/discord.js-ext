@@ -1,8 +1,9 @@
-import { Bot, Check } from ".."
+import { Bot } from ".."
+import { RawCheck, Check } from "./Check"
 import { Command, RawCommand } from "./Command"
 
 type initFunc = (bot: Bot) => any
-type RawCogElement = RawCommand | Check | string | undefined | initFunc
+type RawCogElement = RawCommand | RawCheck | string | undefined | initFunc
 
 export interface RawCog {
     init?: initFunc
@@ -15,7 +16,7 @@ export class Cog {
     name: string
     description: string
 
-    private checks: Required<Check>[]
+    private checks: Check[]
     private commands: Command[]
 
     constructor(data: RawCog) {
@@ -33,28 +34,35 @@ export class Cog {
                 typeof element === "function") continue
 
 
-            if (this._isCheck(element))
-                this.checks.push({
-                    name: element.name ?? key,
-                    description: element.description ?? "",
-                    global: element.global ?? false,
-                    check: element.check,
-                    cog: this
-                })
+            if (this._isRawCheck(element))
+                this.checks.push(
+                    new Check(
+                        element.name ?? key,
+                        element.check,
+                        {
+                            description: element.description,
+                            global: element.global,
+                            cog: this
+                        }
+                    )
+                )
             else if (this._isRawCommand(element))
-                this.commands.push(new Command(element.name ?? key,
-                    element.command,
-                    {
-                        description: element.description ?? "",
-                        aliases: element.aliases ?? [],
-                        check: element.check ?? [],
-                        cog: this
-                    }
-                ))
+                this.commands.push(
+                    new Command(
+                        element.name ?? key,
+                        element.command,
+                        {
+                            description: element.description,
+                            aliases: element.aliases,
+                            check: element.check,
+                            cog: this
+                        }
+                    )
+                )
         }
     }
 
-    private _isCheck(obj: RawCommand | Check): obj is Check {
+    private _isRawCheck(obj: any): obj is RawCheck {
         return typeof obj.check === "function"
     }
 
