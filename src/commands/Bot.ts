@@ -1,39 +1,25 @@
-import { Client, ClientEvents, ClientOptions, Message } from "discord.js";
+import { Client, ClientEvents, ClientOptions, Message } from "discord.js"
 
-import { Cog, RawCog } from "./Cog";
-import { Context } from "./Context";
+import { Cog, RawCog } from "./Cog"
+import { Command, CommandData, CommandFunc } from "./Command"
+import { Context } from "./Context"
 
-type PrefixFunc = (bot: Bot, msg: Message) => string | Promise<string>
-type Prefix = string[] | PrefixFunc
+export type Prefix = string[] | ((bot: Bot, msg: Message) => string | Promise<string>)
 
 export interface BotOptions extends ClientOptions {
     prefix: string | Prefix
 }
 
-type CheckFunc = (ctx: Context, args: string[]) => Promise<boolean> | boolean
+export type CheckFunc = (ctx: Context, args: string[]) => Promise<boolean> | boolean
 
 export interface CheckData {
     description?: string,
-    global?: boolean,
+    global?: boolean
 }
 
 export interface Check extends CheckData {
     name?: string,
     check: CheckFunc,
-    cog: Cog | null
-}
-
-type CommandFunc = (ctx: Context, args: string[]) => any
-
-export interface CommandData {
-    aliases?: string[],
-    description?: string,
-    check?: string[],
-}
-
-export interface Command extends CommandData {
-    name?: string,
-    command: CommandFunc,
     cog: Cog | null
 }
 
@@ -54,12 +40,12 @@ export interface Bot {
 }
 
 export class Bot extends Client {
-
     prefix: Prefix
-    private commands: Required<Command>[]
+
+    private commands: Command[]
     private checks: Required<Check>[]
     private globalChecks: Required<Check>[]
-    private cogs: Required<Cog>[]
+    private cogs: Cog[]
 
     constructor(options: BotOptions) {
         super(options)
@@ -126,14 +112,8 @@ export class Bot extends Client {
     }
 
     addCommand(name: string, func: CommandFunc, commandData: CommandData = {}) {
-        this.commands.push({
-            name,
-            aliases: commandData.aliases ?? [],
-            description: commandData.description ?? "",
-            check: commandData.check ?? [],
-            command: func,
-            cog: null
-        })
+        commandData.cog = undefined
+        this.commands.push(new Command(name, func, commandData))
     }
 
     getCommand(name: string) {
@@ -165,7 +145,7 @@ export class Bot extends Client {
         }
 
         try {
-            await cmd.command(ctx, args)
+            await cmd.callback(ctx, args)
         } catch (err) {
             this.emit("commandError", ctx, err)
         }

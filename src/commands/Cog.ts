@@ -1,7 +1,8 @@
-import { Bot, Command, Check } from ".."
+import { Bot, Check } from ".."
+import { Command, RawCommand } from "./Command"
 
 type initFunc = (bot: Bot) => any
-type RawCogElement = Command | Check | string | undefined | initFunc
+type RawCogElement = RawCommand | Check | string | undefined | initFunc
 
 export interface RawCog {
     init?: initFunc
@@ -15,7 +16,7 @@ export class Cog {
     description: string
 
     private checks: Required<Check>[]
-    private commands: Required<Command>[]
+    private commands: Command[]
 
     constructor(data: RawCog) {
         this.name = data.name
@@ -32,7 +33,7 @@ export class Cog {
                 typeof element === "function") continue
 
 
-            if (this._isCheck(element)) {
+            if (this._isCheck(element))
                 this.checks.push({
                     name: element.name ?? key,
                     description: element.description ?? "",
@@ -40,26 +41,24 @@ export class Cog {
                     check: element.check,
                     cog: this
                 })
-            } else if (this._isCommand(element)) {
-                const cmd = {
-                    name: element.name ?? key,
-                    description: element.description ?? "",
-                    aliases: element.aliases ?? [],
-                    check: element.check ?? [],
-                    command: element.command,
-                    cog: this
-                }
-
-                this.commands.push(cmd)
-            }
+            else if (this._isRawCommand(element))
+                this.commands.push(new Command(element.name ?? key,
+                    element.command,
+                    {
+                        description: element.description ?? "",
+                        aliases: element.aliases ?? [],
+                        check: element.check ?? [],
+                        cog: this
+                    }
+                ))
         }
     }
 
-    private _isCheck(obj: Command | Check): obj is Check {
+    private _isCheck(obj: RawCommand | Check): obj is Check {
         return typeof obj.check === "function"
     }
 
-    private _isCommand(obj: any): obj is Command {
+    private _isRawCommand(obj: any): obj is RawCommand {
         return typeof obj.command === "function"
     }
 

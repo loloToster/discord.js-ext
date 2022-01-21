@@ -10,8 +10,10 @@ import {
     TextChannel,
     ThreadChannel,
     User
-} from "discord.js";
-import { Bot, Command } from "./Bot";
+} from "discord.js"
+
+import { Bot } from "./Bot"
+import { Command } from "./Command"
 
 export interface ContextParameters {
     args: string[],
@@ -23,7 +25,6 @@ export interface ContextParameters {
 
 export interface Context extends ContextParameters { }
 export class Context {
-
     author: User
     channel: DMChannel | PartialDMChannel | NewsChannel | TextChannel | ThreadChannel
     guild: Guild | null
