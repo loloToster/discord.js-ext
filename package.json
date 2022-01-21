@@ -1,7 +1,7 @@
 {
   "name": "discord.js-ext",
   "version": "1.0.0",
-  "description": "Package with extensions for discord.js package",
+  "description": "Set of extensions for discord.js inspired by discord.py",
   "main": "dist/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -9,5 +9,12 @@
   "author": "loloToster",
   "dependencies": {
     "discord.js": "^13.6.0"
-  }
+  },
+  "keywords": [
+    "discord",
+    "discord.js",
+    "discord.py",
+    "extension"
+  ],
+  "types": "dist/index.d.ts"
 }
