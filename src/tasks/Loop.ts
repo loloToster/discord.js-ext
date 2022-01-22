@@ -104,15 +104,18 @@ export class Loop extends EventEmitter {
         this._stop = false
         this.currentIteration = 0
         this._runner(...args)
+        return this
     }
 
     stop() {
         this._stop = true
+        return this
     }
 
     restart(...args: any[]) {
         this.cancel()
         this.start(...args)
+        return this
     }
 
     cancel() {
@@ -122,6 +125,7 @@ export class Loop extends EventEmitter {
         clearTimeout(this.timeout)
         this.timeout = null
         this._canceled = false
+        return this
     }
 
     changeInterval(newInterval: Time | number) {

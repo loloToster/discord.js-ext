@@ -34,26 +34,26 @@ type loopFunc = (...args: any[]) => any
 export class Bot extends Client {
     prefix: Prefix
 
-    private commands: Command[]
-    private checks: Check[]
-    private globalChecks: Check[]
-    private cogs: Cog[]
+    private _commands: Command[]
+    private _checks: Check[]
+    private _globalChecks: Check[]
+    private _cogs: Cog[]
 
-    loops: Record<string, Loop>
+    _loops: Record<string, Loop>
 
     constructor(options: BotOptions) {
         super(options)
 
         this.prefix = typeof options.prefix === "string" ?
-            this.prefix = [options.prefix] :
-            this.prefix = options.prefix
+            [options.prefix] :
+            options.prefix
 
-        this.commands = []
-        this.checks = []
-        this.globalChecks = []
-        this.cogs = []
+        this._commands = []
+        this._checks = []
+        this._globalChecks = []
+        this._cogs = []
 
-        this.loops = {}
+        this._loops = {}
 
         this.on("messageCreate", this._commandHandler)
     }
@@ -77,8 +77,8 @@ export class Bot extends Client {
     }
 
     private async _check(ctx: Context, args: string[]) {
-        const toCheck = this.globalChecks.concat(
-            this.checks.filter(c => ctx.command.check.includes(c.name)),
+        const toCheck = this._globalChecks.concat(
+            this._checks.filter(c => ctx.command.check.includes(c.name)),
             ctx.command.cog?.getChecks().filter(
                 c => c.global || ctx.command.check.includes(c.name)
             ) ?? []
@@ -97,18 +97,26 @@ export class Bot extends Client {
 
         const check = new Check(name, func, checkData)
 
-        if (check.global) this.globalChecks.push(check)
-        else this.checks.push(check)
+        if (check.global) this._globalChecks.push(check)
+        else this._checks.push(check)
     }
+
+    get checks() {
+        let cogsChecks: Check[] = []
+        this._cogs.forEach(c => c.getChecks().forEach(chck => cogsChecks.push(chck)))
+        return this._checks.concat(this._globalChecks, cogsChecks)
+    }
+
+    set checks(_) { throw new Error("Cannot set checks property") }
 
     addCommand(name: string, func: CommandFunc, commandData: CommandData = {}) {
         commandData.cog = undefined
-        this.commands.push(new Command(name, func, commandData))
+        this._commands.push(new Command(name, func, commandData))
     }
 
-    getCommand(name: string) {
-        return this.commands.find(
-            cmd => cmd.name === name || cmd.aliases.some(a => a === name)
+    getCommand(query: string, useAliases: boolean = true) {
+        return this._commands.find(
+            cmd => cmd.name === query || (useAliases && cmd.aliases.some(a => a === query))
         )
     }
 
@@ -143,28 +151,27 @@ export class Bot extends Client {
         return true
     }
 
-    getChecks() {
-        let cogsChecks: Check[] = []
-        this.cogs.forEach(c => c.getChecks().forEach(chck => cogsChecks.push(chck)))
-        return this.checks.concat(this.globalChecks, cogsChecks)
+    get commands() {
+        return this._commands
     }
 
-    getCommands() {
-        return this.commands
-    }
+    set commands(_) { throw new Error("Cannot set commands property") }
 
     addCog(data: RawCog) {
         let newCog = new Cog(data)
-
-        this.commands = this.commands.concat(newCog.getCommands())
-
-        this.cogs.push(newCog)
-
+        this._commands = this._commands.concat(newCog.getCommands())
+        this._cogs.push(newCog)
         if (data.init) data.init(this)
     }
 
-    getCogs() {
-        return this.cogs
+    get cogs() {
+        return this._cogs
+    }
+
+    set cogs(_) { throw new Error("Cannot set cogs property") }
+
+    getCog(name: string) {
+        return this._cogs.find(c => c.name === name)
     }
 
     private _isExt(obj: any): obj is Extension {
@@ -190,9 +197,15 @@ export class Bot extends Client {
         } else if (typeof x === "string" && typeof y === "function" && z !== undefined) {
             z.func = y
             let loop = new Loop(z)
-            this.loops[x] = loop
+            this._loops[x] = loop
             return loop
         }
         throw new Error("Invalid arguments")
     }
+
+    get loops() {
+        return this._loops
+    }
+
+    set loops(_) { throw new Error("Cannot set loops property") }
 }
