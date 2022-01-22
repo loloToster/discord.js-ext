@@ -10,7 +10,6 @@ export interface Time {
 export interface LoopOptions extends Time {
     func: (...args: any[]) => any,
     count?: number,
-    callOnStart?: boolean,
     stopOnFail?: boolean
 }
 
@@ -25,13 +24,18 @@ export interface Loop {
     emit<K extends keyof LoopEvents>(event: K, ...args: LoopEvents[K]): boolean
 }
 
+interface _Timeout extends NodeJS.Timeout {
+    _idleTimeout: number,
+    _idleStart: number
+}
+
 export class Loop extends EventEmitter {
     currentIteration: number
-    count: number
-    callOnStart: boolean
+    readonly count: number
     stopOnFail: boolean
 
     private _stop: boolean
+    private _canceled: boolean
     private ms: number
     private timeout: NodeJS.Timeout | null
     private callback: (...args: any[]) => any
@@ -41,10 +45,11 @@ export class Loop extends EventEmitter {
 
         this.currentIteration = 0
         this.count = options.count ?? Infinity
-        this.callOnStart = options.callOnStart ?? false
+        if (this.count <= 0) throw new Error("Count cannot be lower then 1")
         this.stopOnFail = options.stopOnFail ?? false
 
         this._stop = false
+        this._canceled = false
         this.ms = this._parseTime(options)
         this.timeout = null
         this.callback = options.func
@@ -65,7 +70,6 @@ export class Loop extends EventEmitter {
 
     private _runner(...args: any[]) {
         try {
-            // if (!this.callOnStart && this.currentIteration === 0)
             this.callback(...args)
         } catch (err) {
             this.emit("error", err)
@@ -75,15 +79,30 @@ export class Loop extends EventEmitter {
             }
         }
 
-        this.timeout = this._stop ? null : setTimeout(this._runner.bind(this), this.ms, ...args)
+        this.currentIteration++
+        if (this.count - this.currentIteration <= 0)
+            return this.emit("after")
+
+        if (this._stop) {
+            this.timeout = null
+            this.emit("after")
+            return
+        }
+
+        this.timeout = setTimeout(this._runner.bind(this), this.ms, ...args)
     }
 
     get nextIteration() {
-        return 0
+        if (!this.timeout) return -1
+        const t = this.timeout as _Timeout
+        const ms = t._idleTimeout - (Math.floor(process.uptime() * 1000) - t._idleStart)
+        return ms < 0 ? -1 : ms
     }
 
     start(...args: any[]) {
+        this.emit("before")
         this._stop = false
+        this.currentIteration = 0
         this._runner(...args)
     }
 
@@ -92,13 +111,17 @@ export class Loop extends EventEmitter {
     }
 
     restart(...args: any[]) {
-
+        this.cancel()
+        this.start(...args)
     }
 
     cancel() {
         if (!this.timeout) return
+        this._canceled = true
+        this.emit("after")
         clearTimeout(this.timeout)
         this.timeout = null
+        this._canceled = false
     }
 
     changeInterval(newInterval: Time | number) {
@@ -108,7 +131,7 @@ export class Loop extends EventEmitter {
     }
 
     isBeingCanceled() {
-
+        return this._canceled
     }
 
     isRunning() {
