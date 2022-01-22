@@ -5,6 +5,8 @@ import { Cog, RawCog } from "./Cog"
 import { Command, CommandData, CommandFunc } from "./Command"
 import { Context } from "./Context"
 
+import { Loop, LoopOptions } from "../tasks/Loop"
+
 export type Prefix = string[] | ((bot: Bot, msg: Message) => string | Promise<string>)
 
 export interface BotOptions extends ClientOptions {
@@ -27,6 +29,8 @@ export interface Bot {
     emit<K extends keyof BotEvents>(event: K, ...args: BotEvents[K]): boolean
 }
 
+type loopFunc = (...args: any[]) => any
+
 export class Bot extends Client {
     prefix: Prefix
 
@@ -34,6 +38,8 @@ export class Bot extends Client {
     private checks: Check[]
     private globalChecks: Check[]
     private cogs: Cog[]
+
+    loops: Record<string, Loop>
 
     constructor(options: BotOptions) {
         super(options)
@@ -46,6 +52,8 @@ export class Bot extends Client {
         this.checks = []
         this.globalChecks = []
         this.cogs = []
+
+        this.loops = {}
 
         this.on("messageCreate", this._commandHandler)
     }
@@ -171,5 +179,20 @@ export class Bot extends Client {
         if (!this._isExt(ext)) throw new Error("Invalid extension")
 
         ext.setup(this)
+    }
+
+    loop(func: loopFunc, loopData: LoopOptions): Loop
+    loop(name: string, func: loopFunc, loopData: LoopOptions): Loop
+    loop(x: loopFunc | string, y: LoopOptions | loopFunc, z?: LoopOptions) {
+        if (typeof x === "function" && typeof y !== "function" && z === undefined) {
+            y.func = x
+            return new Loop(y)
+        } else if (typeof x === "string" && typeof y === "function" && z !== undefined) {
+            z.func = y
+            let loop = new Loop(z)
+            this.loops[x] = loop
+            return loop
+        }
+        throw new Error("Invalid arguments")
     }
 }
