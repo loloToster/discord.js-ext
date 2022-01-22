@@ -1,9 +1,22 @@
-import { Bot } from ".."
+import { Bot, BotEvents } from ".."
 import { RawCheck, Check } from "./Check"
 import { Command, RawCommand } from "./Command"
 
 type initFunc = (bot: Bot) => any
-type RawCogElement = RawCommand | RawCheck | string | undefined | initFunc
+
+interface CogOnListener {
+    event?: keyof BotEvents,
+    on<K extends keyof BotEvents>(...args: BotEvents[K]): this,
+    once: undefined
+}
+
+interface CogOnceListener {
+    event?: keyof BotEvents,
+    once<K extends keyof BotEvents>(...args: BotEvents[K]): this,
+    on: undefined
+}
+
+type RawCogElement = RawCommand | RawCheck | CogOnListener | CogOnceListener | string | undefined | initFunc
 
 export interface RawCog {
     init?: initFunc
@@ -12,19 +25,23 @@ export interface RawCog {
     [name: string]: RawCogElement
 }
 
+type CogListener = Required<CogOnListener> | Required<CogOnceListener>
+
 export class Cog {
-    name: string
+    readonly name: string
     description: string
 
-    private checks: Check[]
-    private commands: Command[]
+    private _checks: Check[]
+    private _commands: Command[]
+    private _listeners: CogListener[]
 
     constructor(data: RawCog) {
         this.name = data.name
         this.description = data.description ?? ""
 
-        this.checks = []
-        this.commands = []
+        this._checks = []
+        this._commands = []
+        this._listeners = []
 
         for (const key in data) {
             const element = data[key]
@@ -34,8 +51,8 @@ export class Cog {
                 typeof element === "function") continue
 
 
-            if (this._isRawCheck(element))
-                this.checks.push(
+            if (Cog._isRawCheck(element))
+                this._checks.push(
                     new Check(
                         element.name ?? key,
                         element.check,
@@ -46,8 +63,8 @@ export class Cog {
                         }
                     )
                 )
-            else if (this._isRawCommand(element))
-                this.commands.push(
+            else if (Cog._isRawCommand(element))
+                this._commands.push(
                     new Command(
                         element.name ?? key,
                         element.command,
@@ -59,22 +76,41 @@ export class Cog {
                         }
                     )
                 )
+            else if (Cog._isListener(element)) {
+                let event = element.event ?? key as keyof BotEvents
+                element.event = event
+                this._listeners.push(element as CogListener)
+            }
         }
     }
 
-    private _isRawCheck(obj: any): obj is RawCheck {
+    private static _isRawCheck(obj: any): obj is RawCheck {
         return typeof obj.check === "function"
     }
 
-    private _isRawCommand(obj: any): obj is RawCommand {
+    get checks() {
+        return this._checks
+    }
+
+    set checks(_) { throw new Error("Cannot set checks property") }
+
+    private static _isRawCommand(obj: any): obj is RawCommand {
         return typeof obj.command === "function"
     }
 
-    getCommands() {
-        return this.commands
+    get commands() {
+        return this._commands
     }
 
-    getChecks() {
-        return this.checks
+    set commands(_) { throw new Error("Cannot set commands property") }
+
+    private static _isListener(obj: any): obj is CogOnListener | CogOnceListener {
+        return typeof obj.on === "function" || typeof obj.once === "function"
     }
+
+    get listeners() {
+        return this._listeners
+    }
+
+    set listeners(_) { throw new Error("Cannot set listeners property") }
 }

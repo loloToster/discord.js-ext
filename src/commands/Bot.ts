@@ -26,6 +26,7 @@ export interface BotEvents extends ClientEvents {
 
 export interface Bot {
     on<K extends keyof BotEvents>(event: K, listener: (...args: BotEvents[K]) => any): this,
+    once<K extends keyof BotEvents>(event: K, listener: (...args: BotEvents[K]) => any): this,
     emit<K extends keyof BotEvents>(event: K, ...args: BotEvents[K]): boolean
 }
 
@@ -79,7 +80,7 @@ export class Bot extends Client {
     private async _check(ctx: Context, args: string[]) {
         const toCheck = this._globalChecks.concat(
             this._checks.filter(c => ctx.command.check.includes(c.name)),
-            ctx.command.cog?.getChecks().filter(
+            ctx.command.cog?.checks.filter(
                 c => c.global || ctx.command.check.includes(c.name)
             ) ?? []
         )
@@ -103,7 +104,7 @@ export class Bot extends Client {
 
     get checks() {
         let cogsChecks: Check[] = []
-        this._cogs.forEach(c => c.getChecks().forEach(chck => cogsChecks.push(chck)))
+        this._cogs.forEach(c => c.checks.forEach(chck => cogsChecks.push(chck)))
         return this._checks.concat(this._globalChecks, cogsChecks)
     }
 
@@ -159,7 +160,15 @@ export class Bot extends Client {
 
     addCog(data: RawCog) {
         let newCog = new Cog(data)
-        this._commands = this._commands.concat(newCog.getCommands())
+        this._commands = this._commands.concat(newCog.commands)
+
+        for (const listener of newCog.listeners) {
+            if (listener.on)
+                this.on(listener.event, listener.on)
+            else
+                this.once(listener.event, listener.once)
+        }
+
         this._cogs.push(newCog)
         if (data.init) data.init(this)
     }
