@@ -38,6 +38,9 @@ export interface Bot { // TODO: scoped events
 
 type loopFunc = (...args: any[]) => any
 
+/**
+ * Represents a discord bot. This class is a subclass of Client class from the official discord.js package and as a result anything that you can do with a Client you can do with this bot.
+ */
 export class Bot extends Client {
     /**
      * The prefix of the bot
@@ -49,8 +52,11 @@ export class Bot extends Client {
     private _globalChecks: Check[]
     private _cogs: Cog[]
 
-    _loops: Record<string, Loop>
+    private _loops: Record<string, Loop>
 
+    /**
+     * @param options Options for the bot (These options extend ClientOptions from discord.js)
+     */
     constructor(options: BotOptions) {
         super(options)
 

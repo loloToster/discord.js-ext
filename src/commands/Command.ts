@@ -30,6 +30,9 @@ export interface RawCommand extends CommandData {
     command: CommandFunc
 }
 
+/**
+ * This class is used to create commands and should only be used internally
+ */
 export class Command {
     readonly name: string
     callback: CommandFunc
@@ -40,6 +43,11 @@ export class Command {
 
     cog: Cog | null
 
+    /**
+     * @param name name of the command
+     * @param func the function executed upon command's invoke
+     * @param data additional command options
+     */
     constructor(name: string, func: CommandFunc, data: CommandData) {
         this.name = name
         this.callback = func

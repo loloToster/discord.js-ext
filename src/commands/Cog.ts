@@ -50,6 +50,9 @@ export interface RawCog {
 
 type CogListener = Required<CogOnListener> | Required<CogOnceListener>
 
+/**
+ * This class is used to create cogs and should only be used internally
+ */
 export class Cog {
     /**
      * The name of the cog
@@ -64,6 +67,9 @@ export class Cog {
     private _commands: Command[]
     private _listeners: CogListener[]
 
+    /**
+     * @param data object containing raw cog data
+     */
     constructor(data: RawCog) {
         this.name = data.name
         this.description = data.description ?? ""

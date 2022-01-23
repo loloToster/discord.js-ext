@@ -39,6 +39,10 @@ export interface ContextParameters {
 }
 
 export interface Context extends ContextParameters { }
+
+/**
+ * This class is used to create contexts and should only be used internally
+ */
 export class Context {
     /**
      * The author associated with this context's command (same as Context.message.author)

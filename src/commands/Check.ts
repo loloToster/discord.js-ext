@@ -26,6 +26,9 @@ export interface RawCheck extends CheckData {
     check: CheckFunc
 }
 
+/**
+ * This class is used to create checks and should only be used internally
+ */
 export class Check {
     /**
      * The name of the check
@@ -49,6 +52,11 @@ export class Check {
      */
     cog: Cog | null
 
+    /**
+     * @param name name of the check
+     * @param func function validating the check
+     * @param data additional check options
+     */
     constructor(name: string, func: CheckFunc, data: CheckData) {
         this.name = name
         this.callback = func
