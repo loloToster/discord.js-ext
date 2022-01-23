@@ -5,13 +5,27 @@ import { Command, RawCommand } from "./Command"
 type initFunc = (bot: Bot) => any
 
 interface CogOnListener {
+    /**
+     * The name of the event (defaults to the key of the cog)
+     */
     event?: keyof BotEvents,
+    /**
+     * The function to be called when event is emitted
+     * @param args
+     */
     on<K extends keyof BotEvents>(...args: BotEvents[K]): this,
     once: undefined
 }
 
 interface CogOnceListener {
+    /**
+    * The name of the event (defaults to the key of the cog)
+    */
     event?: keyof BotEvents,
+    /**
+     * The function to be called when event is emitted
+     * @param args
+     */
     once<K extends keyof BotEvents>(...args: BotEvents[K]): this,
     on: undefined
 }
@@ -19,8 +33,17 @@ interface CogOnceListener {
 type RawCogElement = RawCommand | RawCheck | CogOnListener | CogOnceListener | string | undefined | initFunc
 
 export interface RawCog {
+    /**
+     * The function that is called when adding cog
+     */
     init?: initFunc
+    /**
+     * The name of the cog
+     */
     name: string,
+    /**
+     * The description of the cog
+     */
     description?: string,
     [name: string]: RawCogElement
 }
@@ -28,7 +51,13 @@ export interface RawCog {
 type CogListener = Required<CogOnListener> | Required<CogOnceListener>
 
 export class Cog {
+    /**
+     * The name of the cog
+     */
     readonly name: string
+    /**
+     * The description of the cog
+     */
     description: string
 
     private _checks: Check[]
@@ -88,6 +117,9 @@ export class Cog {
         return typeof obj.check === "function"
     }
 
+    /**
+     * List of cog's checks 🚨 readonly
+     */
     get checks() {
         return this._checks
     }
@@ -98,6 +130,9 @@ export class Cog {
         return typeof obj.command === "function"
     }
 
+    /**
+     * List of cog's commands 🚨 readonly
+     */
     get commands() {
         return this._commands
     }
@@ -108,6 +143,9 @@ export class Cog {
         return typeof obj.on === "function" || typeof obj.once === "function"
     }
 
+    /**
+     * List of cog's listeners 🚨 readonly
+     */
     get listeners() {
         return this._listeners
     }

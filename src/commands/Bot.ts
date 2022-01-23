@@ -10,10 +10,16 @@ import { Loop, LoopOptions } from "../tasks/Loop"
 export type Prefix = string[] | ((bot: Bot, msg: Message) => string | Promise<string>)
 
 export interface BotOptions extends ClientOptions {
+    /**
+     * The prefix of Bot's commands. Can be either a single prefix (string), list of prefixes (Array of strings) or a function that takes two parameters - the bot and the message - and returns a prefix used for processing this message 
+     */
     prefix: string | Prefix
 }
 
 export interface Extension {
+    /**
+     * The setup function
+     */
     setup: (bot: Bot) => any,
     teardown?: (bot: Bot) => any // TODO: add unload extension
 }
@@ -24,7 +30,7 @@ export interface BotEvents extends ClientEvents {
     commandNotFound: [msg: Message, cmdName: string, args: string[]]
 }
 
-export interface Bot {
+export interface Bot { // TODO: scoped events
     on<K extends keyof BotEvents>(event: K, listener: (...args: BotEvents[K]) => any): this,
     once<K extends keyof BotEvents>(event: K, listener: (...args: BotEvents[K]) => any): this,
     emit<K extends keyof BotEvents>(event: K, ...args: BotEvents[K]): boolean
@@ -33,6 +39,9 @@ export interface Bot {
 type loopFunc = (...args: any[]) => any
 
 export class Bot extends Client {
+    /**
+     * The prefix of the bot
+     */
     prefix: Prefix
 
     private _commands: Command[]
@@ -93,6 +102,12 @@ export class Bot extends Client {
         return { success: true, checkName: "" }
     }
 
+    /**
+     * Adds a check that can be accessed everywhere
+     * @param name name of the check
+     * @param func function validating the check
+     * @param checkData additional check options
+     */
     addCheck(name: string, func: CheckFunc, checkData: CheckData = {}) {
         checkData.cog = undefined
 
@@ -102,6 +117,9 @@ export class Bot extends Client {
         else this._checks.push(check)
     }
 
+    /**
+     * List of Bot's checks 🚨 readonly
+     */
     get checks() {
         let cogsChecks: Check[] = []
         this._cogs.forEach(c => c.checks.forEach(chck => cogsChecks.push(chck)))
@@ -110,17 +128,36 @@ export class Bot extends Client {
 
     set checks(_) { throw new Error("Cannot set checks property") }
 
+    /**
+     * Adds a command
+     * @param name name of the command
+     * @param func the function executed upon command's invoke
+     * @param commandData additional command options
+     */
     addCommand(name: string, func: CommandFunc, commandData: CommandData = {}) {
         commandData.cog = undefined
         this._commands.push(new Command(name, func, commandData))
     }
 
+    /**
+     * Looks for a command
+     * @param query name or the alias of the command
+     * @param useAliases parameter that determines whether a command should be looked for with aliases
+     * @returns found command
+     */
     getCommand(query: string, useAliases: boolean = true) {
         return this._commands.find(
             cmd => cmd.name === query || (useAliases && cmd.aliases.some(a => a === query))
         )
     }
 
+    /**
+     * Executes a command (used primarily internally)
+     * @param msg the message which the command is invoked with
+     * @param cmdName name of the command
+     * @param args arguments
+     * @returns boolean indicating whether the command was found
+     */
     async executeCommand(msg: Message, cmdName: string, args: string[]) {
         if (!cmdName) return false
         const cmd = this.getCommand(cmdName)
@@ -152,12 +189,19 @@ export class Bot extends Client {
         return true
     }
 
+    /**
+     * List of all commands 🚨 readonly
+     */
     get commands() {
         return this._commands
     }
 
     set commands(_) { throw new Error("Cannot set commands property") }
 
+    /**
+     * Adds a cog to the Bot
+     * @param data object containing raw cog data
+     */
     addCog(data: RawCog) {
         let newCog = new Cog(data)
         this._commands = this._commands.concat(newCog.commands)
@@ -173,12 +217,20 @@ export class Bot extends Client {
         if (data.init) data.init(this)
     }
 
+    /**
+     * List of the Bot's cogs 🚨 readonly
+     */
     get cogs() {
         return this._cogs
     }
 
     set cogs(_) { throw new Error("Cannot set cogs property") }
 
+    /**
+     * Looks for a cog
+     * @param name the name of the cog
+     * @returns found cog
+     */
     getCog(name: string) {
         return this._cogs.find(c => c.name === name)
     }
@@ -189,6 +241,10 @@ export class Bot extends Client {
                 typeof obj.teardown === "undefined") // or undefined
     }
 
+    /**
+     * Loads external file as the extension. This file must export a function called `setup` that takes one parameter: the Bot
+     * @param path absolute path to the extension
+     */
     loadExtension(path: string) {
         let ext = require(path)
 
@@ -197,7 +253,20 @@ export class Bot extends Client {
         ext.setup(this)
     }
 
+    /**
+     * Creates a loop
+     * @param func function to be executed on each loop
+     * @param loopData the options to be used when creating the loop
+     * @returns newly created loop
+     */
     loop(func: loopFunc, loopData: LoopOptions): Loop
+    /**
+     * Creates a loop
+     * @param name the name of the loop (can be then accessed as key in `bot.loops[name]`)
+     * @param func function to be executed on each loop
+     * @param loopData the options to be used when creating the loop
+     * @returns newly created loop
+     */
     loop(name: string, func: loopFunc, loopData: LoopOptions): Loop
     loop(x: loopFunc | string, y: LoopOptions | loopFunc, z?: LoopOptions) {
         if (typeof x === "function" && typeof y !== "function" && z === undefined) {
@@ -212,6 +281,9 @@ export class Bot extends Client {
         throw new Error("Invalid arguments")
     }
 
+    /**
+     * [key]: Loop mapping of the loops added with `name` parameter 🚨 readonly
+     */
     get loops() {
         return this._loops
     }

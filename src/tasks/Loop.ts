@@ -8,8 +8,17 @@ export interface Time {
 }
 
 export interface LoopOptions extends Time {
+    /**
+     * The function executed to be executed on each iteration
+     */
     func: (...args: any[]) => any,
+    /**
+     * The number of loops to do, undefined if it should be an infinite loop
+     */
     count?: number,
+    /**
+     * Parameter indicating whether to stop the loop when it throws an error
+     */
     stopOnFail?: boolean
 }
 
@@ -30,6 +39,9 @@ interface _Timeout extends NodeJS.Timeout {
 }
 
 export class Loop extends EventEmitter {
+    /**
+     * The current iteration of the loop
+     */
     currentIteration: number
     readonly count: number
     stopOnFail: boolean
@@ -50,15 +62,19 @@ export class Loop extends EventEmitter {
 
         this._stop = false
         this._canceled = false
-        this.ms = this._parseTime(options)
+        if (!options.hours && !options.minutes && !options.seconds && !options.milliseconds)
+            throw new Error("Time cannot be 0")
+        this.ms = Loop.parseTime(options)
         this.timeout = null
         this.callback = options.func
     }
 
-    _parseTime(t: Time) {
-        if (!t.hours && !t.minutes && !t.seconds && !t.milliseconds)
-            throw new Error("Time cannot be 0")
-
+    /**
+     * Parses Time object to the number of milliseconds
+     * @param t The Time object that should be converted
+     * @returns milliseconds that were calculated
+     */
+    static parseTime(t: Time) {
         let ms = 0
         ms += t.hours ? t.hours * 3600000 : 0
         ms += t.minutes ? t.minutes * 60000 : 0
@@ -92,6 +108,9 @@ export class Loop extends EventEmitter {
         this.timeout = setTimeout(this._runner.bind(this), this.ms, ...args)
     }
 
+    /**
+     * Number of milliseconds left to the next iteration
+     */
     get nextIteration() {
         if (!this.timeout) return -1
         const t = this.timeout as _Timeout
@@ -99,6 +118,11 @@ export class Loop extends EventEmitter {
         return ms < 0 ? -1 : ms
     }
 
+    /**
+     * Starts the loop
+     * @param args the arguments to use
+     * @returns the Loop
+     */
     start(...args: any[]) {
         this.emit("before")
         this._stop = false
@@ -107,17 +131,30 @@ export class Loop extends EventEmitter {
         return this
     }
 
+    /**
+     * Gracefully stops the task from running. Unlike cancel(), this allows the task to finish its current iteration before gracefully exiting
+     * @returns the Loop
+     */
     stop() {
         this._stop = true
         return this
     }
 
+    /**
+     * A convenience method to restart the loop 
+     * @param args the arguments to use
+     * @returns the Loop
+     */
     restart(...args: any[]) {
         this.cancel()
         this.start(...args)
         return this
     }
 
+    /**
+     * Cancels the internal task if it is running
+     * @returns the loop
+     */
     cancel() {
         if (!this.timeout) return
         this._canceled = true
@@ -128,16 +165,33 @@ export class Loop extends EventEmitter {
         return this
     }
 
+    /**
+     * Changes the interval for the sleep time
+     * @param newInterval the new interval either number of milliseconds or a Time object
+     * @returns new interval in milliseconds
+     */
     changeInterval(newInterval: Time | number) {
+        if (typeof newInterval !== "number" && !newInterval.hours && !newInterval.minutes && !newInterval.seconds && !newInterval.milliseconds)
+            throw new Error("Time cannot be 0")
+
         this.ms = typeof newInterval === "number" ?
-            newInterval : this._parseTime(newInterval)
+            newInterval : Loop.parseTime(newInterval)
+
         return this.ms
     }
 
+    /**
+     * Whether the loop is being cancelled
+     * @returns boolean indicating whether the loop is being cancelled
+     */
     isBeingCanceled() {
         return this._canceled
     }
 
+    /**
+     * Whether the loop is running
+     * @returns boolean indicating whether the loop is running
+     */
     isRunning() {
         return Boolean(this.timeout)
     }
