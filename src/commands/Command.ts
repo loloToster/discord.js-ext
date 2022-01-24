@@ -47,6 +47,7 @@ export class Command {
      * @param name name of the command
      * @param func the function executed upon command's invoke
      * @param data additional command options
+     * @example new Command("ping", async (ctx, args) => await ctx.send(bot.ws.ping + "ms"), {})
      */
     constructor(name: string, func: CommandFunc, data: CommandData) {
         this.name = name

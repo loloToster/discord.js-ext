@@ -68,10 +68,18 @@ export class Context {
         this.invokedWith = ctxParams.invokedWith
     }
 
+    /**
+     * This is a shortcut to `ctx.message.send`
+     * @example await ctx.send("Hello there")
+     */
     async send(options: string | MessagePayload | MessageOptions) {
         return await this.channel.send(options)
     }
 
+    /**
+     * This is a shortcut to `ctx.message.reply`
+     * @example await ctx.reply("Hello there")
+     */
     async reply(options: string | MessagePayload | ReplyMessageOptions) {
         return await this.message.reply(options)
     }

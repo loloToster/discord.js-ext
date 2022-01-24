@@ -56,6 +56,7 @@ export class Check {
      * @param name name of the check
      * @param func function validating the check
      * @param data additional check options
+     * @example new Check("longMessage", (ctx, args) => ctx.message.content > 50, {})
      */
     constructor(name: string, func: CheckFunc, data: CheckData) {
         this.name = name

@@ -56,6 +56,7 @@ export class Bot extends Client {
 
     /**
      * @param options Options for the bot (These options extend ClientOptions from discord.js)
+     * @example new Bot({ prefix: "!" })
      */
     constructor(options: BotOptions) {
         super(options)
@@ -113,6 +114,10 @@ export class Bot extends Client {
      * @param name name of the check
      * @param func function validating the check
      * @param checkData additional check options
+     * @example 
+     * bot.addCheck("inVoice", (ctx, args) => {
+     *     return Boolean(ctx.message.member.voice.channel)
+     * })
      */
     addCheck(name: string, func: CheckFunc, checkData: CheckData = {}) {
         checkData.cog = undefined
@@ -139,6 +144,10 @@ export class Bot extends Client {
      * @param name name of the command
      * @param func the function executed upon command's invoke
      * @param commandData additional command options
+     * @example
+     * bot.addCommand("ping", async (ctx, args) => {
+     *     await ctx.reply(bot.ws.ping + "ms")
+     * }, { aliases: ["latency"] })
      */
     addCommand(name: string, func: CommandFunc, commandData: CommandData = {}) {
         commandData.cog = undefined
@@ -150,6 +159,7 @@ export class Bot extends Client {
      * @param query name or the alias of the command
      * @param useAliases parameter that determines whether a command should be looked for with aliases
      * @returns found command
+     * @example let pingCommand = bot.getCommand("ping")
      */
     getCommand(query: string, useAliases: boolean = true) {
         return this._commands.find(
@@ -207,6 +217,21 @@ export class Bot extends Client {
     /**
      * Adds a cog to the Bot
      * @param data object containing raw cog data
+     * @example 
+     * bot.addCog({
+     *     name: "Test"
+     *     init: bot => console.log("Initializing Test Cog")
+     *     ping: {
+     *          aliases: ["latency"],
+     *          description: "Sends bot's latency",
+     *          command: async (ctx, args) => {
+     *              await ctx.reply(bot.ws.ping + "ms")
+     *          }
+     *     },
+     *     messageCreate: {
+     *          on: msg => console.log(msg) 
+     *     }
+     * })
      */
     addCog(data: RawCog) {
         let newCog = new Cog(data)
@@ -236,6 +261,7 @@ export class Bot extends Client {
      * Looks for a cog
      * @param name the name of the cog
      * @returns found cog
+     * @example let TestCog = bot.getCog("Test")
      */
     getCog(name: string) {
         return this._cogs.find(c => c.name === name)
@@ -250,6 +276,7 @@ export class Bot extends Client {
     /**
      * Loads external file as the extension. This file must export a function called `setup` that takes one parameter: the Bot
      * @param path absolute path to the extension
+     * @example bot.loadExtension(__dirname + "/cogs/Test.js")
      */
     loadExtension(path: string) {
         let ext = require(path)
@@ -264,6 +291,10 @@ export class Bot extends Client {
      * @param func function to be executed on each loop
      * @param loopData the options to be used when creating the loop
      * @returns newly created loop
+     * @example
+     * bot.loop(async (ctx) => {
+     *     await ctx.send(".")
+     * }, { seconds: 2, count: 5 }).start(ctx)
      */
     loop(func: loopFunc, loopData: LoopOptions): Loop
     /**
@@ -272,6 +303,10 @@ export class Bot extends Client {
      * @param func function to be executed on each loop
      * @param loopData the options to be used when creating the loop
      * @returns newly created loop
+     * @example
+     * bot.loop("spammer", async (ctx) => {
+     *     await ctx.send(".")
+     * }, { seconds: 2 }).start(ctx)
      */
     loop(name: string, func: loopFunc, loopData: LoopOptions): Loop
     loop(x: loopFunc | string, y: LoopOptions | loopFunc, z?: LoopOptions) {
