@@ -25,14 +25,26 @@ export interface Extension {
 }
 
 export interface BotEvents extends ClientEvents {
+    /**
+     * emitted when a check throws an error or fails
+     */
     checkError: [ctx: Context, err: unknown],
+    /**
+     * emitted when a command throws an error
+     */
     commandError: [ctx: Context, err: unknown],
+    /**
+     * emitted when a command is not found
+     */
     commandNotFound: [msg: Message, cmdName: string, args: string[]]
 }
 
 export interface Bot { // TODO: scoped events
+    /** @ignore */
     on<K extends keyof BotEvents>(event: K, listener: (...args: BotEvents[K]) => any): this,
+    /** @ignore */
     once<K extends keyof BotEvents>(event: K, listener: (...args: BotEvents[K]) => any): this,
+    /** @ignore */
     emit<K extends keyof BotEvents>(event: K, ...args: BotEvents[K]): boolean
 }
 
@@ -296,7 +308,7 @@ export class Bot extends Client {
      *     await ctx.send(".")
      * }, { seconds: 2, count: 5 }).start(ctx)
      */
-    loop(func: loopFunc, loopData: LoopOptions): Loop
+    loop(func: loopFunc, loopData: Partial<LoopOptions>): Loop
     /**
      * Creates a loop
      * @param name the name of the loop (can be then accessed as key in `bot.loops[name]`)
@@ -308,14 +320,14 @@ export class Bot extends Client {
      *     await ctx.send(".")
      * }, { seconds: 2 }).start(ctx)
      */
-    loop(name: string, func: loopFunc, loopData: LoopOptions): Loop
-    loop(x: loopFunc | string, y: LoopOptions | loopFunc, z?: LoopOptions) {
+    loop(name: string, func: loopFunc, loopData: Partial<LoopOptions>): Loop
+    loop(x: loopFunc | string, y: Partial<LoopOptions> | loopFunc, z?: Partial<LoopOptions>) {
         if (typeof x === "function" && typeof y !== "function" && z === undefined) {
             y.func = x
-            return new Loop(y)
+            return new Loop(y as LoopOptions)
         } else if (typeof x === "string" && typeof y === "function" && z !== undefined) {
             z.func = y
-            let loop = new Loop(z)
+            let loop = new Loop(z as LoopOptions)
             this._loops[x] = loop
             return loop
         }

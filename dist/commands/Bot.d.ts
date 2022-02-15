@@ -158,7 +158,7 @@ export declare class Bot extends Client {
      *     await ctx.send(".")
      * }, { seconds: 2, count: 5 }).start(ctx)
      */
-    loop(func: loopFunc, loopData: LoopOptions): Loop;
+    loop(func: loopFunc, loopData: Partial<LoopOptions>): Loop;
     /**
      * Creates a loop
      * @param name the name of the loop (can be then accessed as key in `bot.loops[name]`)
@@ -170,7 +170,7 @@ export declare class Bot extends Client {
      *     await ctx.send(".")
      * }, { seconds: 2 }).start(ctx)
      */
-    loop(name: string, func: loopFunc, loopData: LoopOptions): Loop;
+    loop(name: string, func: loopFunc, loopData: Partial<LoopOptions>): Loop;
     /**
      * [key]: Loop mapping of the loops added with `name` parameter 🚨 readonly
      */
