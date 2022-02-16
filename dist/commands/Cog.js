@@ -33,6 +33,7 @@ class Cog {
                 this._commands.push(new Command_1.Command((_c = element.name) !== null && _c !== void 0 ? _c : key, element.command, {
                     description: element.description,
                     aliases: element.aliases,
+                    usage: element.usage,
                     check: element.check,
                     cog: this
                 }));

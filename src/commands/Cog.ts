@@ -51,7 +51,7 @@ export interface RawCog {
 type CogListener = Required<CogOnListener> | Required<CogOnceListener>
 
 /**
- * This class is used to create cogs and should only be used internally
+ * A cog is a collection of commands, listeners etc. to help group commands together.
  */
 export class Cog {
     /**
@@ -106,6 +106,7 @@ export class Cog {
                         {
                             description: element.description,
                             aliases: element.aliases,
+                            usage: element.usage,
                             check: element.check,
                             cog: this
                         }

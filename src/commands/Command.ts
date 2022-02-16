@@ -13,6 +13,10 @@ export interface CommandData {
      */
     description?: string,
     /**
+     * The usage of the command
+     */
+    usage?: string,
+    /**
      * Names of the checks that should be called when processing this command
      */
     check?: string[],
@@ -31,7 +35,7 @@ export interface RawCommand extends CommandData {
 }
 
 /**
- * This class is used to create commands and should only be used internally
+ * A class that implements the protocol for a bot text command. Do not use this to create a command instead use for example `Bot.addCommand`
  */
 export class Command {
     readonly name: string
@@ -39,6 +43,7 @@ export class Command {
 
     aliases: string[]
     description: string
+    usage: string
     check: string[]
 
     cog: Cog | null
@@ -55,6 +60,7 @@ export class Command {
 
         this.aliases = data.aliases ?? []
         this.description = data.description ?? ""
+        this.usage = data.usage ?? ""
         this.check = data.check ?? []
 
         this.cog = data.cog ?? null

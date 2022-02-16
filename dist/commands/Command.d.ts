@@ -11,6 +11,10 @@ export interface CommandData {
      */
     description?: string;
     /**
+     * The usage of the command
+     */
+    usage?: string;
+    /**
      * Names of the checks that should be called when processing this command
      */
     check?: string[];
@@ -34,6 +38,7 @@ export declare class Command {
     callback: CommandFunc;
     aliases: string[];
     description: string;
+    usage: string;
     check: string[];
     cog: Cog | null;
     /**
